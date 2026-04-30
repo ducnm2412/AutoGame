@@ -100,6 +100,13 @@ UI_POSITIONS = {
     "btn_cancel": (300, 800),         # Nút hủy
 }
 
+# --- Vị trí menu trồng cây (900x1600 dọc) ---
+# Dựa trên screenshot tap_plot_2.png, tap_plot_4.png
+PLANT_MENU = {
+    "checkbox_trong_nhanh": (640, 870),   # Checkbox "Trồng nhanh" (bên phải ô tìm kiếm)
+    "first_flower": (90, 980),            # Hoa đầu tiên trong lưới (Dạ Lan Hương Tím)
+}
+
 # --- Cấu hình đơn hàng ---
 MAX_ORDER_RETRY = 3        # Số lần thử lại khi giao đơn thất bại
 ORDER_CHECK_INTERVAL = 60  # Kiểm tra đơn mới mỗi X giây

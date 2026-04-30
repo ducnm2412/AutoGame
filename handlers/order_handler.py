@@ -176,24 +176,28 @@ class OrderHandler:
             return False
 
         # Bước 2: Đóng popup "Làm xong" bằng tap ngoài
-        self.popup.tap_outside(50, 200)
+        time.sleep(DELAY_SCREEN_LOAD)
+        self.adb.tap(450, 1550)
+        logger.info("  ✅ Tap ngoài popup 'Làm xong'")
+        time.sleep(DELAY_SCREEN_LOAD)
 
-        # Bước 3: Click nút 'Giao'
+        # Bước 3: Click nút 'Giao' - dùng wait_for để chờ nút xuất hiện
         btn_giao = os.path.join(IMAGES_BUTTONS, "btn_giao.png")
         btn_den_lam = os.path.join(IMAGES_BUTTONS, "btn_den_lam.png")
 
-        ss = self._screenshot()
-        if ss is None:
-            return False
-
         if os.path.exists(btn_giao):
-            if self.matcher.find_and_tap(self.adb, btn_giao, screenshot=ss):
-                logger.info("  📦 Đã click 'Giao'")
+            result = self.matcher.wait_for(self.adb, btn_giao, timeout=5, interval=0.5)
+            if result:
+                x, y, conf = result
+                self.adb.tap(x, y)
+                logger.info(f"  📦 Đã click 'Giao' tại ({x}, {y})")
                 time.sleep(DELAY_ORDER)
                 self.popup.dismiss_reward()
                 return True
 
-        if os.path.exists(btn_den_lam):
+        # Fallback: tìm btn_den_lam (nút Giao có thể giống Đến làm)
+        ss = self._screenshot()
+        if ss and os.path.exists(btn_den_lam):
             result = self.matcher.find(ss, btn_den_lam, threshold=0.6)
             if result:
                 x, y, conf = result
@@ -203,5 +207,13 @@ class OrderHandler:
                 self.popup.dismiss_reward()
                 return True
 
-        logger.warning("  Không tìm thấy nút 'Giao'")
+        # Debug: lưu screenshot để kiểm tra
+        debug_ss = self._screenshot()
+        if debug_ss:
+            from config import SCREENSHOTS_DIR
+            debug_path = os.path.join(SCREENSHOTS_DIR, "debug_giao.png")
+            debug_ss.save(debug_path)
+            logger.warning(f"  Không tìm thấy nút 'Giao' → đã lưu debug: {debug_path}")
+        else:
+            logger.warning("  Không tìm thấy nút 'Giao'")
         return False
