@@ -11,7 +11,6 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from core.bot import GameBot
-from config import MAIN_LOOP_INTERVAL
 
 
 def run_continuous():
@@ -24,7 +23,8 @@ def run_continuous():
     try:
         while bot.running:
             bot.run_cycle()
-            time.sleep(MAIN_LOOP_INTERVAL)
+            print("⏳ Chờ 3 phút...")
+            time.sleep(180)
     except KeyboardInterrupt:
         print("\nĐang dừng bot...")
     finally:

@@ -1,88 +1,93 @@
 # ============================================================
-# HANDLER TRỒNG CÂY - Trồng → Tưới nhanh → Thu hoạch nhanh
+# HANDLER TRỒNG CÂY - Nhận diện popup_menu / thu_hoach_nhanh
 # ============================================================
 
+import os
 import time
 from core.logger import setup_logger
-from config import FARM_PLOTS, FARM_FIRST_FLOWER, FARM_VIP_BUTTON
+from core.image_matcher import ImageMatcher
+from config import FARM_PLOTS, FARM_FIRST_FLOWER, FARM_VIP_BUTTON, IMAGES_UI
 
 DELAY_STEP = 3  # Chờ 3 giây giữa mỗi bước
 
 logger = setup_logger()
 
+# Đường dẫn ảnh mẫu nhận diện
+THU_HOACH_NHANH_IMG = os.path.join(IMAGES_UI, "thu_hoach_nhanh.png")
+POPUP_MENU_IMG = os.path.join(IMAGES_UI, "popup_menu.png")
+
 
 class FarmHandler:
-    """Xử lý trồng cây: Tap ô đất → Chọn hoa → Tưới nhanh → Thu hoạch nhanh."""
+    """Xử lý trồng cây thông minh: nhận diện popup_menu hoặc thu_hoach_nhanh."""
 
     def __init__(self, adb):
         self.adb = adb
+        self.matcher = ImageMatcher()
 
     def run(self):
         """
-        Chạy toàn bộ flow trồng cây cho tất cả ô đất:
-        1. Tap ô đất → menu trồng → chọn hoa đầu tiên
-        2. Tap ô đất → menu tưới → Tưới nhanh (VIP)
-        3. Tap ô đất → menu thu hoạch → Thu hoạch nhanh (VIP)
+        Tap ô đất → chụp màn hình → nhận diện:
+          1. popup_menu → chọn hoa + tưới nhanh
+          2. thu_hoach_nhanh → tap thu hoạch
+          3. Trường hợp khác → tap (798, 624) đóng popup
         """
-        logger.info("🌱 Bắt đầu TRỒNG CÂY...")
-        total = 0
+        logger.info("🌱 Bắt đầu TRỒNG & THU HOẠCH...")
+        total_harvested = 0
+        total_planted = 0
 
         for idx, (px, py) in enumerate(FARM_PLOTS):
             logger.info(f"  --- Ô đất #{idx + 1} tại ({px}, {py}) ---")
 
-            # Bước 1: Trồng cây
-            if not self._plant(px, py):
-                logger.warning(f"  ❌ Không trồng được ô #{idx + 1}")
-                continue
+            while True:
+                self.adb.tap(px, py)
+                logger.info(f"  Tap ô đất ({px}, {py})")
+                time.sleep(DELAY_STEP)
 
-            # Bước 2: Tưới nhanh
-            if not self._vip_action(px, py, "Tưới nhanh"):
-                logger.warning(f"  ❌ Không tưới được ô #{idx + 1}")
-                continue
+                # Chụp màn hình và nhận diện
+                screenshot = self.adb.screenshot()
+                if screenshot is None:
+                    logger.warning("  Không chụp được màn hình!")
+                    break
 
-            # Bước 3: Thu hoạch nhanh
-            if not self._vip_action(px, py, "Thu hoạch nhanh"):
-                logger.warning(f"  ❌ Không thu hoạch được ô #{idx + 1}")
-                continue
+                has_harvest = self.matcher.find(screenshot, THU_HOACH_NHANH_IMG)
+                has_menu = self.matcher.find(screenshot, POPUP_MENU_IMG)
 
-            # Bước 4: Tap (817, 1185) để xác nhận
-            self.adb.tap(817, 1185)
-            logger.info(f"  ✅ Tap (817, 1185)")
-            time.sleep(DELAY_STEP)
+                if has_harvest:
+                    # === THU HOẠCH NHANH ===
+                    hx, hy, conf = has_harvest
+                    self.adb.tap(hx, hy)
+                    logger.info(f"  ⚡ Thu hoạch nhanh tại ({hx}, {hy}) conf={conf:.3f}")
+                    total_harvested += 1
+                    time.sleep(DELAY_STEP)
+                    # Lặp lại tap ô đất
 
-            total += 1
-            logger.info(f"  ✅ Hoàn thành ô #{idx + 1}")
+                elif has_menu:
+                    # === POPUP MENU → Chọn hoa + Tưới nhanh ===
+                    fx, fy = FARM_FIRST_FLOWER
+                    self.adb.tap(fx, fy)
+                    logger.info(f"  🌸 Chọn hoa tại ({fx}, {fy})")
+                    time.sleep(DELAY_STEP)
 
-        logger.info(f"🌾 Đã trồng & thu hoạch {total}/{len(FARM_PLOTS)} ô")
-        return total
+                    # Tưới nhanh
+                    self.adb.tap(px, py)
+                    logger.info(f"  Tap ô đất ({px}, {py})")
+                    time.sleep(DELAY_STEP)
+                    vx, vy = FARM_VIP_BUTTON
+                    self.adb.tap(vx, vy)
+                    logger.info(f"  ⚡ Tưới nhanh tại ({vx}, {vy})")
+                    time.sleep(DELAY_STEP)
 
-    # ----------------------------------------------------------
-    # PRIVATE
-    # ----------------------------------------------------------
-    def _plant(self, plot_x, plot_y):
-        """Tap ô đất → chọn hoa đầu tiên."""
-        fx, fy = FARM_FIRST_FLOWER
+                    total_planted += 1
+                    # Lặp lại tap ô đất (sẽ thấy thu_hoach_nhanh)
 
-        self.adb.tap(plot_x, plot_y)
-        logger.info(f"  Tap ô đất ({plot_x}, {plot_y})")
-        time.sleep(DELAY_STEP)
+                else:
+                    # === TRƯỜNG HỢP KHÁC → Đóng popup ===
+                    self.adb.tap(798, 624)
+                    logger.info(f"  ⏭️ Đóng popup (798, 624)")
+                    time.sleep(DELAY_STEP)
+                    break
 
-        self.adb.tap(fx, fy)
-        logger.info(f"  🌸 Chọn hoa tại ({fx}, {fy})")
-        time.sleep(DELAY_STEP)
+            logger.info(f"  ✅ Xong ô #{idx + 1}")
 
-        return True
-
-    def _vip_action(self, plot_x, plot_y, action_name):
-        """Tap ô đất → Tap nút VIP (Tưới nhanh / Thu hoạch nhanh)."""
-        vx, vy = FARM_VIP_BUTTON
-
-        self.adb.tap(plot_x, plot_y)
-        logger.info(f"  Tap ô đất ({plot_x}, {plot_y})")
-        time.sleep(DELAY_STEP)
-
-        self.adb.tap(vx, vy)
-        logger.info(f"  ⚡ {action_name} tại ({vx}, {vy})")
-        time.sleep(DELAY_STEP)
-
-        return True
+        logger.info(f"🌾 Kết quả: thu hoạch {total_harvested}, trồng mới {total_planted}")
+        return total_harvested + total_planted

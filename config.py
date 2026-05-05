@@ -64,8 +64,8 @@ FARM_VIP_BUTTON = (628, 1179)
 
 # --- Cấu hình đơn hàng ---
 MAX_ORDER_RETRY = 3        # Số lần thử lại khi giao đơn thất bại
-ORDER_CHECK_INTERVAL = 60  # Kiểm tra đơn mới mỗi X giây
+ORDER_CHECK_INTERVAL = 180  # Kiểm tra đơn mỗi 180s (3 phút)
 
 # --- Cấu hình vòng lặp chính ---
-MAIN_LOOP_INTERVAL = 5     # Giây giữa mỗi vòng lặp kiểm tra
+MAIN_LOOP_INTERVAL = 600    # Giây giữa mỗi vòng lặp (10 phút)
 MAX_RUNTIME_HOURS = 8      # Tự dừng sau X giờ
