@@ -27,12 +27,11 @@ class GameBot:
         # Handlers
         self.popup = PopupHandler(self.adb, self.matcher)
         self.orders = OrderHandler(self.adb, self.matcher, self.popup)
-        self.farm = FarmHandler(self.adb, self.matcher)
+        self.farm = FarmHandler(self.adb)
 
         # Stats
         self.stats = {
-            "harvested": 0,
-            "planted": 0,
+            "farmed": 0,
             "orders_done": 0,
             "errors": 0,
         }
@@ -70,29 +69,18 @@ class GameBot:
     # VÒNG LẶP CHÍNH
     # ----------------------------------------------------------
     def run_cycle(self):
-        """Chạy 1 chu kỳ: Thu hoạch → Trồng → Đơn hàng."""
+        """Chạy 1 chu kỳ: Trồng cây → Đơn hàng."""
         logger.info("=" * 40)
         logger.info("🔄 BẮT ĐẦU CHU KỲ MỚI")
         logger.info("=" * 40)
 
         try:
-            # Bước 1: Thu hoạch
-            if self.farm.has_harvest_template():
-                count = self.farm.harvest()
-                self.stats["harvested"] += count
-                time.sleep(DELAY_BETWEEN_ACTIONS)
-            else:
-                logger.info("⏭️ Bỏ qua thu hoạch (chưa có ảnh mẫu)")
+            # Bước 1: Trồng cây (trồng → tưới nhanh → thu hoạch nhanh)
+            count = self.farm.run()
+            self.stats["farmed"] += count
+            time.sleep(DELAY_BETWEEN_ACTIONS)
 
-            # Bước 2: Trồng cây
-            if self.farm.has_crop_templates():
-                count = self.farm.plant()
-                self.stats["planted"] += count
-                time.sleep(DELAY_BETWEEN_ACTIONS)
-            else:
-                logger.info("⏭️ Bỏ qua trồng cây (chưa có ảnh mẫu)")
-
-            # Bước 3: Xử lý đơn hàng
+            # Bước 2: Xử lý đơn hàng
             count = self.orders.process_orders()
             self.stats["orders_done"] += count
 
@@ -107,7 +95,6 @@ class GameBot:
     # ----------------------------------------------------------
     def _print_stats(self):
         logger.info("--- THỐNG KÊ ---")
-        logger.info(f"  Thu hoạch: {self.stats['harvested']}")
-        logger.info(f"  Trồng cây: {self.stats['planted']}")
+        logger.info(f"  Trồng cây: {self.stats['farmed']}")
         logger.info(f"  Đơn hàng:  {self.stats['orders_done']}")
         logger.info(f"  Lỗi:       {self.stats['errors']}")
